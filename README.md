@@ -1,135 +1,476 @@
-# Azure Url Shortener (AzUrlShortener)
+# AWS ECR Terraform Module
 
-![GitHub Release](https://img.shields.io/github/v/release/microsoft/AzUrlShortener)  ![.NET](https://img.shields.io/badge/9.0-512BD4?logo=dotnet&logoColor=fff) [![Build](https://github.com/microsoft/AzUrlShortener/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/microsoft/AzUrlShortener/actions/workflows/build.yml) ![GitHub License](https://img.shields.io/github/license/microsoft/AzUrlShortener) [![Discord](https://img.shields.io/badge/Discord-%235865F2.svg?&logo=discord&logoColor=white)](https://discord.gg/6zA3jKw)
+A comprehensive, production-ready Terraform module for creating and managing Amazon Elastic Container Registry (ECR) repositories with advanced features including lifecycle policies, image scanning, replication, and security configurations.
 
-<!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-23-orange.svg?style=flat-square)](#contributors-)
-<!-- ALL-CONTRIBUTORS-BADGE:END -->
+## 🚀 Features
 
+- ✅ **Complete ECR Management**: Repository creation with full configuration options
+- ✅ **Security First**: Image scanning, KMS encryption, and access controls
+- ✅ **Lifecycle Management**: Automatic image cleanup with custom or default policies
+- ✅ **Cross-Region Replication**: Multi-region deployment support
+- ✅ **Pull-Through Cache**: Cache public registries for improved performance
+- ✅ **Cross-Account Access**: IAM roles for multi-account scenarios
+- ✅ **Enhanced Scanning**: Integration with Amazon Inspector
+- ✅ **Production Ready**: Comprehensive validation and error handling
 
-![UrlShortener][UrlShortener]
+## 📁 Project Structure
 
-A simple and easy to use and to deploy budget-friendly Url Shortener for everyone. It runs in your Azure (Microsoft cloud) subscription.  
+```
+├── modules/
+│   └── ecr/                    # Main ECR module
+│       ├── main.tf            # Main resources
+│       ├── variables.tf       # Input variables
+│       ├── outputs.tf         # Output values
+│       ├── versions.tf        # Provider requirements
+│       └── README.md          # Module documentation
+├── examples/
+│   ├── basic/                 # Basic usage example
+│   ├── enhanced-security/     # Security-focused example
+│   └── multi-repository/      # Multiple repositories example
+├── main.tf                    # Root configuration example
+├── variables.tf               # Root variables
+├── terraform.tfvars.example   # Example variables file
+└── README.md                  # This file
+```
 
-> If you don't own an Azure subscription already, you can create your **free** account today. It comes with 200$ credit, so you can experience almost everything without spending a dime. [Create your free Azure account today](https://azure.microsoft.com/free?WT.mc_id=dotnet-0000-frbouche)
+## 🏁 Quick Start
 
-Features:
+### 1. Basic Usage
 
-- Redirect different destination base on schedules.
-- Keep Statistics of your clicks.
-- Budget-friendly and 100% open-source.
-- Extensible for more enterprise-friendly configurations
-- Simple step by step deployment. 
+```hcl
+module "ecr_repository" {
+  source = "./modules/ecr"
+
+  repository_name = "my-application"
   
+  tags = {
+    Environment = "production"
+    Team        = "backend"
+  }
+}
+```
 
-## How To Deploy
+### 2. Advanced Configuration
 
-👉 **[Step by Step Deployment](doc/how-to-deploy.md)** 👈 documentation is available here.
+```hcl
+module "ecr_secure" {
+  source = "./modules/ecr"
 
-If you want to **Update** or **Upgrade**, please refer to [the faq page](doc/faq.md). 
+  repository_name      = "secure-api"
+  image_tag_mutability = "IMMUTABLE"
+  scan_on_push        = true
+  encryption_type     = "KMS"
+  kms_key_id          = aws_kms_key.ecr.arn
 
-## How To Use It
+  # Custom lifecycle policy
+  lifecycle_policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Keep last 10 production images"
+        selection = {
+          tagStatus     = "tagged"
+          tagPrefixList = ["v"]
+          countType     = "imageCountMoreThan"
+          countNumber   = 10
+        }
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
 
-Once deployed, use the admin webApp (aka TinyBlazorAdmin) to create new short URLs. 
+  tags = {
+    Environment = "production"
+    Security    = "high"
+  }
+}
+```
 
-![Tiny Blazor Admin looks](images/tinyblazyadmin-tour.gif)
+### 3. Multiple Repositories
 
+```hcl
+locals {
+  repositories = {
+    frontend = {
+      repository_name = "frontend-app"
+      environment     = "staging"
+    }
+    backend = {
+      repository_name = "backend-api"
+      environment     = "production"
+    }
+  }
+}
 
-### Alternative Admin Tool
+module "ecr_repositories" {
+  source = "./modules/ecr"
+  
+  for_each = local.repositories
 
-By default, all the required resources are deployed into Azure. However you can decide to run the [API](src/Cloud5mins.ShortenerTools.Api/) locally, in a container or somewhere else. You can than use an API client like [Postman](https://www.postman.com/) or a plugin to VSCode like [REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client), to manage your URLs. We've included simple API calls via a postman collection and environment [here](./src/tools/).
+  repository_name      = each.value.repository_name
+  image_tag_mutability = each.value.environment == "production" ? "IMMUTABLE" : "MUTABLE"
+  scan_on_push        = true
 
-You can also directly update the tables in storage using [Azure Storage Explorer](doc/how-to-use-azure-storage-explorer.md). 
+  tags = {
+    Environment = each.value.environment
+    Service     = each.key
+  }
+}
+```
+
+## 📚 Examples
+
+Explore the complete examples in the `examples/` directory:
+
+- **[Basic](./examples/basic/)**: Simple ECR repository with default settings
+- **[Enhanced Security](./examples/enhanced-security/)**: Production-ready with KMS encryption and strict policies
+- **[Multi-Repository](./examples/multi-repository/)**: Multiple repositories with different configurations
+
+## 🛠️ Getting Started
+
+### Prerequisites
+
+- [Terraform](https://www.terraform.io/downloads.html) >= 1.0
+- [AWS CLI](https://aws.amazon.com/cli/) configured with appropriate permissions
+- AWS provider >= 5.0
+
+### Installation
+
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd aws-ecr-terraform-module
+   ```
+
+2. **Copy example variables**:
+   ```bash
+   cp terraform.tfvars.example terraform.tfvars
+   ```
+
+3. **Edit variables**:
+   ```bash
+   # Edit terraform.tfvars with your configuration
+   vim terraform.tfvars
+   ```
+
+4. **Initialize Terraform**:
+   ```bash
+   terraform init
+   ```
+
+5. **Plan deployment**:
+   ```bash
+   terraform plan
+   ```
+
+6. **Apply configuration**:
+   ```bash
+   terraform apply
+   ```
+
+### Basic Workflow
+
+```bash
+# Initialize
+terraform init
+
+# Plan changes
+terraform plan -var-file="terraform.tfvars"
+
+# Apply changes
+terraform apply -var-file="terraform.tfvars"
+
+# Get ECR login command
+terraform output ecr_login_command
+```
+
+## 🔧 Configuration
+
+### Module Inputs
+
+| Name | Description | Type | Default | Required |
+|------|-------------|------|---------|:--------:|
+| `repository_name` | Name of the ECR repository | `string` | n/a | yes |
+| `image_tag_mutability` | Tag mutability (MUTABLE/IMMUTABLE) | `string` | `"MUTABLE"` | no |
+| `scan_on_push` | Enable image scanning on push | `bool` | `true` | no |
+| `encryption_type` | Encryption type (AES256/KMS) | `string` | `"AES256"` | no |
+| `kms_key_id` | KMS key ARN for encryption | `string` | `null` | no |
+| `lifecycle_policy` | Custom lifecycle policy JSON | `string` | `null` | no |
+| `max_image_count` | Max images to keep (default policy) | `number` | `10` | no |
+| `max_image_age_days` | Max image age in days (default policy) | `number` | `30` | no |
+
+### Module Outputs
+
+| Name | Description |
+|------|-------------|
+| `repository_arn` | Full ARN of the repository |
+| `repository_url` | Repository URL for Docker |
+| `repository_name` | Name of the repository |
+| `registry_id` | Registry ID |
+
+## 🔒 Security Best Practices
+
+### 1. Image Tag Mutability
+```hcl
+# Production: Use immutable tags
+image_tag_mutability = "IMMUTABLE"
+
+# Development: Allow tag overwriting
+image_tag_mutability = "MUTABLE"
+```
+
+### 2. Encryption
+```hcl
+# Basic encryption (default)
+encryption_type = "AES256"
+
+# Enhanced encryption with KMS
+encryption_type = "KMS"
+kms_key_id     = aws_kms_key.ecr.arn
+```
+
+### 3. Image Scanning
+```hcl
+# Enable scanning on push
+scan_on_push = true
+
+# Enhanced registry scanning
+enable_registry_scanning = true
+registry_scan_type      = "ENHANCED"
+```
+
+### 4. Access Control
+```hcl
+# Repository policy example
+repository_policy = jsonencode({
+  Version = "2012-10-17"
+  Statement = [
+    {
+      Sid    = "AllowPushPull"
+      Effect = "Allow"
+      Principal = {
+        AWS = "arn:aws:iam::ACCOUNT:role/ECRRole"
+      }
+      Action = [
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:PutImage"
+      ]
+    }
+  ]
+})
+```
+
+## 🎯 Use Cases
+
+### Development Environment
+```hcl
+module "dev_ecr" {
+  source = "./modules/ecr"
+
+  repository_name         = "my-app-dev"
+  image_tag_mutability   = "MUTABLE"
+  scan_on_push          = false
+  max_image_count       = 5
+  max_image_age_days    = 7
+
+  tags = {
+    Environment = "development"
+  }
+}
+```
+
+### Production Environment
+```hcl
+module "prod_ecr" {
+  source = "./modules/ecr"
+
+  repository_name      = "my-app-prod"
+  image_tag_mutability = "IMMUTABLE"
+  scan_on_push        = true
+  encryption_type     = "KMS"
+  kms_key_id          = aws_kms_key.ecr.arn
+
+  # Strict lifecycle policy
+  lifecycle_policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Keep last 20 production images"
+        selection = {
+          tagStatus     = "tagged"
+          tagPrefixList = ["v"]
+          countType     = "imageCountMoreThan"
+          countNumber   = 20
+        }
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Environment = "production"
+    Criticality = "high"
+  }
+}
+```
+
+## 🔄 CI/CD Integration
+
+### GitHub Actions Example
+```yaml
+name: Build and Push to ECR
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region us-west-2 | \
+          docker login --username AWS --password-stdin \
+          123456789012.dkr.ecr.us-west-2.amazonaws.com
+
+      - name: Build and push image
+        run: |
+          docker build -t my-app .
+          docker tag my-app:latest \
+          123456789012.dkr.ecr.us-west-2.amazonaws.com/my-app:latest
+          docker push 123456789012.dkr.ecr.us-west-2.amazonaws.com/my-app:latest
+```
+
+## 🧪 Testing
+
+### Validate Module
+```bash
+# Initialize and validate
+terraform init
+terraform validate
+
+# Check formatting
+terraform fmt -check
+
+# Plan with example variables
+terraform plan -var-file="examples/basic/terraform.tfvars"
+```
+
+### Test Repository Access
+```bash
+# Get login token
+aws ecr get-login-password --region us-west-2 | \
+docker login --username AWS --password-stdin \
+123456789012.dkr.ecr.us-west-2.amazonaws.com
+
+# Test push/pull
+docker pull hello-world
+docker tag hello-world:latest \
+123456789012.dkr.ecr.us-west-2.amazonaws.com/my-app:test
+docker push 123456789012.dkr.ecr.us-west-2.amazonaws.com/my-app:test
+```
+
+## 💡 Tips and Best Practices
+
+### 1. Naming Conventions
+- Use consistent, descriptive repository names
+- Include environment in name for clarity: `app-name-prod`
+- Use lowercase and hyphens: `my-web-app`
+
+### 2. Lifecycle Policies
+- Implement policies to control costs
+- Keep more production images than development
+- Clean up untagged images quickly
+
+### 3. Security
+- Enable image scanning for all repositories
+- Use KMS encryption for sensitive applications
+- Implement least-privilege access policies
+- Regular security reviews
+
+### 4. Cost Optimization
+- Monitor repository sizes regularly
+- Use appropriate lifecycle policies
+- Consider image layer sharing
+- Clean up unused repositories
+
+### 5. Operational Excellence
+- Tag all resources consistently
+- Use descriptive repository names
+- Document custom lifecycle policies
+- Monitor scanning results
+
+## 🆘 Troubleshooting
+
+### Common Issues
+
+1. **Permission Denied**
+   ```bash
+   # Check AWS credentials
+   aws sts get-caller-identity
+   
+   # Verify ECR permissions
+   aws ecr describe-repositories
+   ```
+
+2. **Docker Login Failed**
+   ```bash
+   # Get fresh login token
+   aws ecr get-login-password --region us-west-2 | \
+   docker login --username AWS --password-stdin \
+   $(aws sts get-caller-identity --query Account --output text).dkr.ecr.us-west-2.amazonaws.com
+   ```
+
+3. **Image Push Failed**
+   ```bash
+   # Check repository exists
+   aws ecr describe-repositories --repository-names my-app
+   
+   # Verify image tag format
+   docker images
+   ```
+
+### Getting Help
+- Check AWS ECR documentation
+- Review Terraform AWS provider docs
+- Examine CloudTrail logs for API calls
+- Use AWS CLI for direct testing
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📞 Support
+
+For questions, issues, or contributions:
+- Open an issue on GitHub
+- Check the documentation in `modules/ecr/README.md`
+- Review the examples in the `examples/` directory
 
 ---
 
-## Videos
-
-There is also a videos that explains a bit how things works and does a quick tour of the project.
-
-| Cloud 5 Mins | Azure Friday |
-| ---          | --- |
-| [![Tiny Blazor Admin looks](images/AzUrlShortener_preview.gif)](https://youtu.be/fzXy2D77WMM) | [![Azure Friday](/images/AzureFriday_preview.gif)](https://learn.microsoft.com/en-us/shows/azure-friday/azurlshortener-an-open-source-budget-friendly-url-shortener)  |
-
-
----
-
-
-## What's Next?
-
-We are always trying to make it better. See the [AzUrlShortener project](https://github.com/users/FBoucher/projects/6/views/4) page and [issues](https://github.com/microsoft/AzUrlShortener/issues) to see the current progress. 
-
-You are invited to go into the [Discussion](https://github.com/microsoft/AzUrlShortener/discussions) tab to share your feedback, ask question, and suggest new feature! Or have look at our [faq](doc/faq.md) page for more information.
-
-Current Backlog contains:
-- More Statistics
-- QR Code
-- More tracking information (like Country)
-- etc.
-
-
----
-
-
-## Contributing
-
-If you find a bug or would like to add a feature, check out those resources:
-
-Check out our [Code of Conduct](CODE_OF_CONDUCT.md) and [Contributing](CONTRIBUTING.md) docs. This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification.  Contributions of any kind welcome!
-
-## Contributors ✨
-
-Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
-
-<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
-<!-- prettier-ignore-start -->
-<!-- markdownlint-disable -->
-<table>
-  <tbody>
-    <tr>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/surlydev"><img src="https://avatars1.githubusercontent.com/u/880671?v=4?s=100" width="100px;" alt="SurlyDev"/><br /><sub><b>SurlyDev</b></sub></a><br /><a href="#ideas-surlydev" title="Ideas, Planning, & Feedback">🤔</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="http://cloud5mins.com"><img src="https://avatars3.githubusercontent.com/u/2404846?v=4?s=100" width="100px;" alt="Frank Boucher"/><br /><sub><b>Frank Boucher</b></sub></a><br /><a href="https://github.com/microsoft/AzUrlShortener/commits?author=FBoucher" title="Code">💻</a> <a href="#video-FBoucher" title="Videos">📹</a> <a href="https://github.com/microsoft/AzUrlShortener/issues?q=author%3AFBoucher" title="Bug reports">🐛</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/AK0785"><img src="https://avatars1.githubusercontent.com/u/40241010?v=4?s=100" width="100px;" alt="AKER"/><br /><sub><b>AKER</b></sub></a><br /><a href="#ideas-AK0785" title="Ideas, Planning, & Feedback">🤔</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="http://baaijte.net"><img src="https://avatars3.githubusercontent.com/u/1761079?v=4?s=100" width="100px;" alt="Vincent Baaij"/><br /><sub><b>Vincent Baaij</b></sub></a><br /><a href="https://github.com/microsoft/AzUrlShortener/commits?author=vnbaaij" title="Code">💻</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/kmm7"><img src="https://avatars3.githubusercontent.com/u/13196402?v=4?s=100" width="100px;" alt="kmm7"/><br /><sub><b>kmm7</b></sub></a><br /><a href="https://github.com/microsoft/AzUrlShortener/commits?author=kmm7" title="Code">💻</a> <a href="#ideas-kmm7" title="Ideas, Planning, & Feedback">🤔</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/fs366e2spm"><img src="https://avatars2.githubusercontent.com/u/52791126?v=4?s=100" width="100px;" alt="fs366e2spm"/><br /><sub><b>fs366e2spm</b></sub></a><br /><a href="https://github.com/microsoft/AzUrlShortener/issues?q=author%3Afs366e2spm" title="Bug reports">🐛</a> <a href="#ideas-fs366e2spm" title="Ideas, Planning, & Feedback">🤔</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Hedlund01"><img src="https://avatars1.githubusercontent.com/u/48281171?v=4?s=100" width="100px;" alt="Hugo Hedlund"/><br /><sub><b>Hugo Hedlund</b></sub></a><br /><a href="https://github.com/microsoft/AzUrlShortener/commits?author=Hedlund01" title="Code">💻</a></td>
-    </tr>
-    <tr>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/thefisk"><img src="https://avatars2.githubusercontent.com/u/39799908?v=4?s=100" width="100px;" alt="Nathan Fisk"/><br /><sub><b>Nathan Fisk</b></sub></a><br /><a href="https://github.com/microsoft/AzUrlShortener/commits?author=thefisk" title="Documentation">📖</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="http://www.lexplore.com"><img src="https://avatars0.githubusercontent.com/u/3719489?v=4?s=100" width="100px;" alt="Erik Alsmyr"/><br /><sub><b>Erik Alsmyr</b></sub></a><br /><a href="https://github.com/microsoft/AzUrlShortener/issues?q=author%3Aalsmyr" title="Bug reports">🐛</a> <a href="https://github.com/microsoft/AzUrlShortener/commits?author=alsmyr" title="Documentation">📖</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://jawn.net"><img src="https://avatars3.githubusercontent.com/u/1705112?v=4?s=100" width="100px;" alt="Bernard Vander Beken"/><br /><sub><b>Bernard Vander Beken</b></sub></a><br /><a href="https://github.com/microsoft/AzUrlShortener/commits?author=jawn" title="Documentation">📖</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/IronManion"><img src="https://avatars0.githubusercontent.com/u/36028632?v=4?s=100" width="100px;" alt="IronManion"/><br /><sub><b>IronManion</b></sub></a><br /><a href="https://github.com/microsoft/AzUrlShortener/commits?author=IronManion" title="Documentation">📖</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="http://www.jasonhand.com"><img src="https://avatars0.githubusercontent.com/u/1173344?v=4?s=100" width="100px;" alt="Jason Hand"/><br /><sub><b>Jason Hand</b></sub></a><br /><a href="https://github.com/microsoft/AzUrlShortener/commits?author=jasonhand" title="Documentation">📖</a> <a href="#infra-jasonhand" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://Microsoft.com"><img src="https://avatars.githubusercontent.com/u/617586?v=4?s=100" width="100px;" alt="Scott Cate"/><br /><sub><b>Scott Cate</b></sub></a><br /><a href="https://github.com/microsoft/AzUrlShortener/commits?author=scottcate" title="Code">💻</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/arglgruml"><img src="https://avatars.githubusercontent.com/u/3940298?v=4?s=100" width="100px;" alt="arglgruml"/><br /><sub><b>arglgruml</b></sub></a><br /><a href="https://github.com/microsoft/AzUrlShortener/issues?q=author%3Aarglgruml" title="Bug reports">🐛</a></td>
-    </tr>
-    <tr>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/DavidTCarpenters"><img src="https://avatars.githubusercontent.com/u/50587918?v=4?s=100" width="100px;" alt="DavidTCarpenters"/><br /><sub><b>DavidTCarpenters</b></sub></a><br /><a href="https://github.com/microsoft/AzUrlShortener/commits?author=DavidTCarpenters" title="Code">💻</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/solvaholic"><img src="https://avatars.githubusercontent.com/u/14636658?v=4?s=100" width="100px;" alt="Roger D. Winans"/><br /><sub><b>Roger D. Winans</b></sub></a><br /><a href="https://github.com/microsoft/AzUrlShortener/commits?author=solvaholic" title="Documentation">📖</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/fatpacket"><img src="https://avatars.githubusercontent.com/u/5621063?v=4?s=100" width="100px;" alt="fatpacket"/><br /><sub><b>fatpacket</b></sub></a><br /><a href="https://github.com/microsoft/AzUrlShortener/commits?author=fatpacket" title="Documentation">📖</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/ch-rob"><img src="https://avatars.githubusercontent.com/u/14352153?v=4?s=100" width="100px;" alt="Chad Voelker"/><br /><sub><b>Chad Voelker</b></sub></a><br /><a href="https://github.com/microsoft/AzUrlShortener/commits?author=ch-rob" title="Code">💻</a> <a href="https://github.com/microsoft/AzUrlShortener/commits?author=ch-rob" title="Documentation">📖</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/davidmginn"><img src="https://avatars.githubusercontent.com/u/831166?v=4?s=100" width="100px;" alt="David Ginn"/><br /><sub><b>David Ginn</b></sub></a><br /><a href="https://github.com/microsoft/AzUrlShortener/commits?author=davidmginn" title="Code">💻</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="http://www.c-sharpcorner.com/members/catcher-wong"><img src="https://avatars.githubusercontent.com/u/8394988?v=4?s=100" width="100px;" alt="Catcher Wong"/><br /><sub><b>Catcher Wong</b></sub></a><br /><a href="https://github.com/microsoft/AzUrlShortener/commits?author=catcherwong" title="Code">💻</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/stulzq"><img src="https://avatars.githubusercontent.com/u/13200155?v=4?s=100" width="100px;" alt="Zhiqiang Li"/><br /><sub><b>Zhiqiang Li</b></sub></a><br /><a href="https://github.com/microsoft/AzUrlShortener/commits?author=stulzq" title="Code">💻</a></td>
-    </tr>
-    <tr>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/ddematheu2"><img src="https://avatars.githubusercontent.com/u/43075365?v=4?s=100" width="100px;" alt="ddematheu2"/><br /><sub><b>ddematheu2</b></sub></a><br /><a href="https://github.com/microsoft/AzUrlShortener/issues?q=author%3Addematheu2" title="Bug reports">🐛</a> <a href="https://github.com/microsoft/AzUrlShortener/commits?author=ddematheu2" title="Code">💻</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://davidop.code.blog/"><img src="https://avatars.githubusercontent.com/u/7433346?v=4?s=100" width="100px;" alt="David Oliva Paredes"/><br /><sub><b>David Oliva Paredes</b></sub></a><br /><a href="https://github.com/microsoft/AzUrlShortener/commits?author=davidop" title="Code">💻</a></td>
-    </tr>
-  </tbody>
-</table>
-
-<!-- markdownlint-restore -->
-<!-- prettier-ignore-end -->
-
-<!-- ALL-CONTRIBUTORS-LIST:END -->
-
-This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome!
-
-
-
-> This project was inspired by a project created by [Jeremy Likness](https://github.com/JeremyLikness) that you can find here [jlik.me](https://github.com/JeremyLikness/jlik.me).
-
-
-[UrlShortener]: images/UrlShortener_600.png
+**Happy Container Registering! 🐳**

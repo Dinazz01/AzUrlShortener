@@ -1,0 +1,10 @@
+# Example Terraform variables file
+# Copy this file to terraform.tfvars and modify values as needed
+
+# AWS Configuration
+aws_region  = "us-west-2"
+environment = "dev"
+
+# Additional variables you might want to set:
+# aws_region  = "us-east-1"
+# environment = "production"
